@@ -235,6 +235,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Configurar PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, json
+
+    - name: Instalar dependencias de Composer
+      run: composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
+
     - name: Construir imagen Docker
       run: docker compose build
 
@@ -246,13 +255,23 @@ jobs:
 
     - name: Probar endpoint raíz
       run: |
-        set -e
-        curl -sf http://localhost:8080
+        response=$(curl -sf http://localhost:8080)
+        if echo "$response" | grep -qi "fatal error\|warning\|error"; then
+          echo "Error detectado en la respuesta:"
+          echo "$response"
+          exit 1
+        fi
+        echo "✓ Endpoint raíz OK"
 
     - name: Probar endpoint de salud
       run: |
-        set -e
-        curl -sf http://localhost:8080/health
+        response=$(curl -sf http://localhost:8080/health)
+        if echo "$response" | grep -qi "fatal error\|warning\|error"; then
+          echo "Error detectado en la respuesta:"
+          echo "$response"
+          exit 1
+        fi
+        echo "✓ Endpoint de salud OK"
 
     - name: Detener contenedores
       if: always()
