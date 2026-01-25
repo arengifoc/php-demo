@@ -173,6 +173,9 @@ jobs:
     name: Cobertura de Código
     runs-on: ubuntu-latest
     needs: [tests-unitarios, tests-integracion, tests-aplicacion]
+    permissions:
+      contents: write
+      pull-requests: write
     defaults:
       run:
         shell: bash
