@@ -1,0 +1,10 @@
+/vendor/
+/coverage/
+/.phpunit.cache/
+/.phpstan/
+.php-cs-fixer.cache
+coverage.xml
+coverage.json
+composer.lock
+.env
+.DS_Store

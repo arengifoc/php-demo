@@ -1,0 +1,89 @@
+name: Integración Continua
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configurar PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, json
+        coverage: xdebug
+
+    - name: Validar composer.json
+      run: composer validate --strict
+
+    - name: Cachear paquetes de Composer
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+
+    - name: Instalar dependencias
+      run: composer install --prefer-dist --no-progress
+
+    - name: Ejecutar PHP-CS-Fixer
+      run: composer cs:check
+
+    - name: Ejecutar PHPStan
+      run: composer phpstan
+
+    - name: Ejecutar pruebas PHPUnit con cobertura
+      run: vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage --coverage-text
+
+    - name: Subir cobertura a Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.xml
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Subir reportes de cobertura como artefacto
+      uses: actions/upload-artifact@v4
+      with:
+        name: reporte-cobertura
+        path: coverage/
+        retention-days: 30
+
+    - name: Comentar cobertura en PR
+      if: github.event_name == 'pull_request'
+      uses: py-cov-action/python-coverage-comment-action@v3
+      with:
+        GITHUB_TOKEN: ${{ github.token }}
+        MINIMUM_GREEN: 80
+        MINIMUM_ORANGE: 60
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: pruebas
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Construir imagen Docker
+      run: docker-compose build
+
+    - name: Iniciar contenedores
+      run: docker-compose up -d
+
+    - name: Esperar a que la aplicación inicie
+      run: sleep 10
+
+    - name: Probar endpoint de salud
+      run: |
+        curl -f http://localhost:8080/health || exit 1
+
+    - name: Detener contenedores
+      run: docker-compose down
