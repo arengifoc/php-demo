@@ -7,7 +7,68 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  pruebas:
+  # ✅ Validación de código
+  validacion:
+    name: Validación de Código
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configurar PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, json
+
+    - name: Cachear dependencias
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+
+    - name: Instalar dependencias
+      run: composer install --prefer-dist --no-progress
+
+    - name: Validar composer.json
+      run: composer validate --strict
+
+    - name: Verificar estilo de código (PHP-CS-Fixer)
+      run: composer cs:check
+
+  # 🔍 Análisis estático
+  analisis-estatico:
+    name: Análisis Estático (PHPStan)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configurar PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, json
+
+    - name: Cachear dependencias
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+
+    - name: Instalar dependencias
+      run: composer install --prefer-dist --no-progress
+
+    - name: Ejecutar PHPStan (Nivel 8)
+      run: composer phpstan
+
+  # 🧪 Tests Unitarios
+  tests-unitarios:
+    name: Tests Unitarios
     runs-on: ubuntu-latest
 
     steps:
@@ -20,10 +81,7 @@ jobs:
         extensions: mbstring, xml, ctype, json
         coverage: xdebug
 
-    - name: Validar composer.json
-      run: composer validate --strict
-
-    - name: Cachear paquetes de Composer
+    - name: Cachear dependencias
       uses: actions/cache@v3
       with:
         path: vendor
@@ -34,13 +92,95 @@ jobs:
     - name: Instalar dependencias
       run: composer install --prefer-dist --no-progress
 
-    - name: Ejecutar PHP-CS-Fixer
-      run: composer cs:check
+    - name: Ejecutar tests unitarios
+      run: vendor/bin/phpunit tests/Handler/HealthHandlerTest.php --testdox
 
-    - name: Ejecutar PHPStan
-      run: composer phpstan
+  # 🔗 Tests de Integración
+  tests-integracion:
+    name: Tests de Integración
+    runs-on: ubuntu-latest
 
-    - name: Ejecutar pruebas PHPUnit con cobertura
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configurar PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, json
+        coverage: xdebug
+
+    - name: Cachear dependencias
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+
+    - name: Instalar dependencias
+      run: composer install --prefer-dist --no-progress
+
+    - name: Ejecutar tests de integración
+      run: vendor/bin/phpunit tests/Handler/HealthHandlerIntegrationTest.php --testdox
+
+  # 🧩 Tests de Aplicación
+  tests-aplicacion:
+    name: Tests de Aplicación (E2E)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configurar PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, json
+        coverage: xdebug
+
+    - name: Cachear dependencias
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+
+    - name: Instalar dependencias
+      run: composer install --prefer-dist --no-progress
+
+    - name: Ejecutar tests de aplicación completa
+      run: vendor/bin/phpunit tests/ApplicationTest.php --testdox
+
+  # 📊 Cobertura de Código
+  cobertura:
+    name: Cobertura de Código
+    runs-on: ubuntu-latest
+    needs: [tests-unitarios, tests-integracion, tests-aplicacion]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configurar PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, json
+        coverage: xdebug
+
+    - name: Cachear dependencias
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+
+    - name: Instalar dependencias
+      run: composer install --prefer-dist --no-progress
+
+    - name: Generar reporte de cobertura completo
       run: vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage --coverage-text
 
     - name: Subir cobertura a Codecov
@@ -65,9 +205,11 @@ jobs:
         MINIMUM_GREEN: 80
         MINIMUM_ORANGE: 60
 
+  # 🐳 Tests Docker
   docker:
+    name: Tests Docker (Health Check)
     runs-on: ubuntu-latest
-    needs: pruebas
+    needs: [validacion, analisis-estatico, tests-unitarios, tests-integracion, tests-aplicacion]
 
     steps:
     - uses: actions/checkout@v4
@@ -80,6 +222,10 @@ jobs:
 
     - name: Esperar a que la aplicación inicie
       run: sleep 10
+
+    - name: Probar endpoint raíz
+      run: |
+        curl -f http://localhost:8080 || exit 1
 
     - name: Probar endpoint de salud
       run: |
