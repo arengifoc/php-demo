@@ -202,7 +202,62 @@ jobs:
       run: composer install --prefer-dist --no-progress
 
     - name: Generar reporte de cobertura completo
-      run: vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage --coverage-text
+      run: |
+        vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage --coverage-text | tee coverage-output.txt
+
+    - name: Extraer resumen de cobertura
+      id: coverage
+      run: |
+        # Extraer el porcentaje de cobertura del reporte de PHPUnit
+        COVERAGE=$(grep -oP 'Lines:\s+\K[\d.]+(?=%)' coverage-output.txt | head -1)
+        echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+        echo "Cobertura de líneas: $COVERAGE%"
+
+    - name: Crear resumen de cobertura
+      run: |
+        echo "## 📊 Reporte de Cobertura de Código" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Cobertura Total: ${{ steps.coverage.outputs.percentage }}%" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📄 [Ver reporte completo en artefactos](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Agregar detalles del reporte de texto
+        echo "<details>" >> $GITHUB_STEP_SUMMARY
+        echo "<summary>Ver detalles de cobertura por archivo</summary>" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        grep -A 100 "Code Coverage Report:" coverage-output.txt | head -50 >> $GITHUB_STEP_SUMMARY || echo "No se pudo extraer el detalle" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "</details>" >> $GITHUB_STEP_SUMMARY
+
+    - name: Comentar cobertura en PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const coverage = '${{ steps.coverage.outputs.percentage }}';
+          const emoji = coverage >= 80 ? '✅' : coverage >= 60 ? '⚠️' : '❌';
+          const status = coverage >= 80 ? 'Excelente' : coverage >= 60 ? 'Aceptable' : 'Necesita mejora';
+          
+          const comment = `## ${emoji} Reporte de Cobertura de Código
+          
+          **Cobertura Total:** ${coverage}% (${status})
+          
+          | Métrica | Valor |
+          |---------|-------|
+          | Cobertura de líneas | ${coverage}% |
+          | Estado | ${status} |
+          
+          📊 [Ver reporte completo en artefactos](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
 
     - name: Subir cobertura a Codecov
       uses: codecov/codecov-action@v4
