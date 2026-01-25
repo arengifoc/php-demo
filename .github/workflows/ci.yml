@@ -225,11 +225,14 @@ jobs:
 
     - name: Probar endpoint raíz
       run: |
-        curl -f http://localhost:8080 || exit 1
+        set -e
+        curl -sf http://localhost:8080
 
     - name: Probar endpoint de salud
       run: |
-        curl -f http://localhost:8080/health || exit 1
+        set -e
+        curl -sf http://localhost:8080/health
 
     - name: Detener contenedores
+      if: always()
       run: docker compose down
