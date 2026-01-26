@@ -58,7 +58,7 @@ jobs:
         response=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
           -X POST \
           -H "Content-Type: application/json" \
-          -d '{"image_tag":"${{ inputs.image_tag }}", "environment":"development"}' \
+          -d '{"image_tag":"${{ inputs.image_tag }}", "environment":"dev"}' \
           "${{ secrets.DEV_WEBHOOK_URL }}?token=${{ secrets.DEV_WEBHOOK_TOKEN }}")
         
         http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2)
