@@ -1,0 +1,151 @@
+name: Deploy a Desarrollo
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        description: 'Tag de la imagen Docker a desplegar'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Tag de la imagen Docker a desplegar'
+        required: true
+        type: string
+        default: 'latest'
+
+jobs:
+  deploy:
+    name: Desplegar a DEV
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+      url: https://${{ vars.DEV_SERVER_URL }}
+    defaults:
+      run:
+        shell: bash
+    
+    steps:
+    - name: Información de despliegue
+      run: |
+        echo "🚀 Iniciando despliegue a DEV"
+        echo "📦 Imagen: ${{ vars.DOCKERHUB_USERNAME }}/php-demo:${{ inputs.image_tag }}"
+        echo "🌍 Servidor: ${{ vars.DEV_SERVER_URL }}"
+        echo "⏰ Fecha: $(date)"
+
+    - name: Verificar imagen en Docker Hub
+      run: |
+        echo "🔍 Verificando que la imagen existe en Docker Hub..."
+        
+        # Verificar con Docker Hub API
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          "https://hub.docker.com/v2/repositories/${{ vars.DOCKERHUB_USERNAME }}/php-demo/tags/${{ inputs.image_tag }}")
+        
+        if [ "$STATUS" = "200" ]; then
+          echo "✅ Imagen encontrada en Docker Hub"
+        else
+          echo "❌ Imagen no encontrada en Docker Hub (HTTP $STATUS)"
+          echo "Verifica que el build se completó correctamente"
+          exit 1
+        fi
+
+    - name: Trigger deployment webhook
+      id: webhook
+      run: |
+        echo "📡 Enviando comando de despliegue al servidor..."
+        
+        response=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+          -X POST \
+          -H "Content-Type: application/json" \
+          -d '{"image_tag":"${{ inputs.image_tag }}"}' \
+          "${{ secrets.DEV_WEBHOOK_URL }}?token=${{ secrets.DEV_WEBHOOK_TOKEN }}")
+        
+        http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2)
+        body=$(echo "$response" | sed '/HTTP_CODE:/d')
+        
+        echo "HTTP Status: $http_code"
+        echo "Respuesta: $body"
+        
+        if [ "$http_code" = "200" ]; then
+          echo "✅ Webhook ejecutado correctamente"
+          echo "response=$body" >> $GITHUB_OUTPUT
+        else
+          echo "❌ Error al ejecutar webhook (HTTP $http_code)"
+          exit 1
+        fi
+
+    - name: Esperar despliegue
+      run: |
+        echo "⏳ Esperando a que el servidor complete el despliegue..."
+        sleep 30
+
+    - name: Verificar despliegue
+      run: |
+        echo "🔍 Verificando que la aplicación responde..."
+        
+        max_attempts=10
+        attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Intento $attempt de $max_attempts..."
+          
+          if response=$(curl -s -f https://${{ vars.DEV_SERVER_URL }}/health); then
+            echo "✅ Aplicación responde correctamente"
+            echo ""
+            echo "📊 Información de build desplegada:"
+            echo "$response" | jq '.'
+            
+            # Verificar que el tag coincide
+            deployed_tag=$(echo "$response" | jq -r '.build.tag')
+            
+            if [ "$deployed_tag" = "${{ inputs.image_tag }}" ]; then
+              echo ""
+              echo "✅ Tag verificado: $deployed_tag"
+              exit 0
+            else
+              echo ""
+              echo "⚠️  Tag esperado: ${{ inputs.image_tag }}"
+              echo "⚠️  Tag desplegado: $deployed_tag"
+              echo "El despliegue puede estar en progreso..."
+            fi
+          else
+            echo "⏳ Aplicación aún no responde, esperando..."
+          fi
+          
+          attempt=$((attempt + 1))
+          sleep 10
+        done
+        
+        echo "❌ La aplicación no respondió después de $max_attempts intentos"
+        exit 1
+
+    - name: Resumen de despliegue
+      if: success()
+      run: |
+        echo "## 🚀 Despliegue a DEV Exitoso" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Aplicación desplegada correctamente" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Detalles:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Imagen:** \`${{ vars.DOCKERHUB_USERNAME }}/php-demo:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Servidor:** https://${{ vars.DEV_SERVER_URL }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Health Check:** https://${{ vars.DEV_SERVER_URL }}/health" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version Info:** https://${{ vars.DEV_SERVER_URL }}/version.html" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Enlaces útiles:" >> $GITHUB_STEP_SUMMARY
+        echo "- 🌐 [Abrir Aplicación](https://${{ vars.DEV_SERVER_URL }})" >> $GITHUB_STEP_SUMMARY
+        echo "- 📊 [Ver Version Info](https://${{ vars.DEV_SERVER_URL }}/version.html)" >> $GITHUB_STEP_SUMMARY
+        echo "- 🏥 [Health Check](https://${{ vars.DEV_SERVER_URL }}/health)" >> $GITHUB_STEP_SUMMARY
+
+    - name: Notificar fallo
+      if: failure()
+      run: |
+        echo "## ❌ Despliegue a DEV Falló" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "El despliegue no se completó correctamente." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Pasos para diagnosticar:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Verificar logs del webhook en el servidor" >> $GITHUB_STEP_SUMMARY
+        echo "2. Verificar que la imagen existe en Docker Hub" >> $GITHUB_STEP_SUMMARY
+        echo "3. Conectarse al servidor y revisar: \`docker compose logs\`" >> $GITHUB_STEP_SUMMARY

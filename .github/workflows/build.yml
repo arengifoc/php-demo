@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      image_tag: ${{ steps.meta.outputs.commit_short }}
+      timestamp: ${{ steps.meta.outputs.timestamp }}
     defaults:
       run:
         shell: bash
@@ -157,3 +160,12 @@ jobs:
     - name: Verificar imagen en Docker Hub
       run: |
         echo "Imagen disponible en: https://hub.docker.com/r/${{ vars.DOCKERHUB_USERNAME }}/php-demo"
+
+  # Job de despliegue automático a DEV
+  deploy-dev:
+    name: Deploy a DEV
+    needs: build-and-push
+    uses: ./.github/workflows/deploy-dev.yml
+    with:
+      image_tag: ${{ needs.build-and-push.outputs.image_tag }}
+    secrets: inherit
