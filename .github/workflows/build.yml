@@ -70,12 +70,8 @@ jobs:
         docker compose -f docker-compose.prod.yml ps
         
         echo ""
-        echo "📝 Logs de PHP:"
-        docker compose -f docker-compose.prod.yml logs php
-        
-        echo ""
-        echo "📝 Logs de Nginx:"
-        docker compose -f docker-compose.prod.yml logs nginx
+        echo "📝 Logs de la aplicación (Nginx + PHP-FPM):"
+        docker compose -f docker-compose.prod.yml logs app
         
         echo ""
         echo "✓ Probando endpoint raíz..."
