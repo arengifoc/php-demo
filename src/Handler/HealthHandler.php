@@ -16,9 +16,10 @@ class HealthHandler
             'fecha_hora' => date('c'),
             'tiempo_activo' => $this->getUptime(),
             'version_php' => PHP_VERSION,
+            'build' => $this->getBuildInfo(),
         ];
 
-        $json = json_encode($health);
+        $json = json_encode($health, JSON_PRETTY_PRINT);
         if ($json === false) {
             $json = '{"error":"Failed to encode JSON"}';
         }
@@ -26,6 +27,8 @@ class HealthHandler
 
         return $response
             ->withHeader('Content-Type', 'application/json')
+            ->withHeader('X-Build-Commit', $this->getBuildInfo()['commit'] ?? 'unknown')
+            ->withHeader('X-Build-Date', $this->getBuildInfo()['fecha'] ?? 'unknown')
             ->withStatus(200);
     }
 
@@ -34,5 +37,28 @@ class HealthHandler
         $uptime = time() - $_SERVER['REQUEST_TIME'];
 
         return sprintf('%d segundos', $uptime);
+    }
+
+    private function getBuildInfo(): array
+    {
+        $buildFile = __DIR__ . '/../../build-info.json';
+        
+        if (file_exists($buildFile)) {
+            $content = file_get_contents($buildFile);
+            $info = json_decode($content, true);
+            return $info ?: $this->getDefaultBuildInfo();
+        }
+        
+        return $this->getDefaultBuildInfo();
+    }
+
+    private function getDefaultBuildInfo(): array
+    {
+        return [
+            'commit' => getenv('GIT_COMMIT') ?: 'dev',
+            'branch' => getenv('GIT_BRANCH') ?: 'local',
+            'fecha' => getenv('BUILD_DATE') ?: date('c'),
+            'tag' => getenv('IMAGE_TAG') ?: 'latest',
+        ];
     }
 }

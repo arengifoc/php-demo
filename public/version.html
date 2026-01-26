@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHP Demo - Version Info</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .info-grid {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .info-value {
+            color: #555;
+            font-size: 1.1em;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #28a745;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .timestamp {
+            text-align: center;
+            color: #999;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 PHP Demo</h1>
+        <p class="subtitle">Información de Build y Despliegue</p>
+        
+        <div class="status">✓ Sistema Operativo</div>
+        
+        <div class="info-grid" id="buildInfo">
+            <div class="info-item">
+                <div class="info-label">⏳ Cargando información...</div>
+            </div>
+        </div>
+        
+        <button class="refresh-btn" onclick="loadBuildInfo()">🔄 Actualizar</button>
+        
+        <div class="timestamp" id="timestamp"></div>
+    </div>
+    
+    <script>
+        function loadBuildInfo() {
+            fetch('/health')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('buildInfo');
+                    container.innerHTML = `
+                        <div class="info-item">
+                            <div class="info-label">📦 Commit</div>
+                            <div class="info-value">${data.build?.commit || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">🏷️ Tag</div>
+                            <div class="info-value">${data.build?.tag || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">📅 Fecha de Build</div>
+                            <div class="info-value">${data.build?.fecha || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">🌿 Branch</div>
+                            <div class="info-value">${data.build?.branch || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">🐘 PHP Version</div>
+                            <div class="info-value">${data.version_php || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">⏱️ Tiempo Activo</div>
+                            <div class="info-value">${data.tiempo_activo || 'N/A'}</div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('timestamp').innerHTML = 
+                        `Última actualización: ${new Date().toLocaleString('es-ES')}`;
+                })
+                .catch(error => {
+                    document.getElementById('buildInfo').innerHTML = 
+                        '<div class="info-item"><div class="info-label">❌ Error al cargar información</div></div>';
+                    console.error('Error:', error);
+                });
+        }
+        
+        // Cargar al inicio
+        loadBuildInfo();
+        
+        // Auto-refresh cada 30 segundos
+        setInterval(loadBuildInfo, 30000);
+    </script>
+</body>
+</html>

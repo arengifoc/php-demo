@@ -55,6 +55,10 @@ jobs:
           ${{ vars.DOCKERHUB_USERNAME }}/php-demo:latest
           ${{ vars.DOCKERHUB_USERNAME }}/php-demo:${{ steps.meta.outputs.commit_short }}
           ${{ vars.DOCKERHUB_USERNAME }}/php-demo:${{ steps.meta.outputs.timestamp }}
+        build-args: |
+          GIT_COMMIT=${{ steps.meta.outputs.commit_short }}
+          BUILD_DATE=${{ steps.meta.outputs.timestamp }}
+          IMAGE_TAG=${{ steps.meta.outputs.commit_short }}
         cache-from: type=registry,ref=${{ vars.DOCKERHUB_USERNAME }}/php-demo:buildcache
         cache-to: type=registry,ref=${{ vars.DOCKERHUB_USERNAME }}/php-demo:buildcache,mode=max
 
