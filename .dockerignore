@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+.github
+
+# Docker
+docker-compose.yml
+docker-compose.prod.yml
+Dockerfile
+.dockerignore
+
+# Tests
+tests/
+phpunit.xml
+.phpunit.result.cache
+
+# Development tools
+phpstan.neon
+.php-cs-fixer.php
+.php-cs-fixer.cache
+
+# Documentation
+README.md
+LICENSE
+Makefile
+
+# IDE
+.vscode
+.idea
+
+# Coverage reports
+coverage/
+coverage.xml
+coverage-output.txt
+
+# Dependencies (será copiado desde builder)
+vendor/
+
+# Logs
+*.log

@@ -1,0 +1,32 @@
+# Docker Compose para producción/testing de imagen productiva
+# Esta configuración simula un ambiente productivo localmente
+
+services:
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: php-demo-nginx-prod
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - php
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile.prod
+    container_name: php-demo-app-prod
+    networks:
+      - app-network
+    environment:
+      - PHP_ENV=production
+    restart: unless-stopped
+    # Sin volúmenes - todo está dentro de la imagen
+
+networks:
+  app-network:
+    driver: bridge
