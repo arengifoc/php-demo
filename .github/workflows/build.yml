@@ -61,7 +61,7 @@ jobs:
     - name: Probar imagen productiva
       run: |
         echo "🧪 Probando imagen autocontenida..."
-        docker-compose -f docker-compose.prod.yml up -d
+        docker compose -f docker-compose.prod.yml up -d
         
         echo "⏳ Esperando a que la aplicación inicie..."
         sleep 10
@@ -70,8 +70,8 @@ jobs:
         response=$(curl -sf http://localhost:8080)
         if echo "$response" | grep -qi "fatal error\|warning\|error"; then
           echo "❌ Error detectado en endpoint raíz"
-          docker-compose -f docker-compose.prod.yml logs
-          docker-compose -f docker-compose.prod.yml down
+          docker compose -f docker-compose.prod.yml logs
+          docker compose -f docker-compose.prod.yml down
           exit 1
         fi
         
@@ -79,13 +79,13 @@ jobs:
         response=$(curl -sf http://localhost:8080/health)
         if echo "$response" | grep -qi "fatal error\|warning\|error"; then
           echo "❌ Error detectado en endpoint de salud"
-          docker-compose -f docker-compose.prod.yml logs
-          docker-compose -f docker-compose.prod.yml down
+          docker compose -f docker-compose.prod.yml logs
+          docker compose -f docker-compose.prod.yml down
           exit 1
         fi
         
         echo "✅ Imagen productiva funciona correctamente"
-        docker-compose -f docker-compose.prod.yml down
+        docker compose -f docker-compose.prod.yml down
 
     - name: Publicar imagen a Docker Hub
       run: |
