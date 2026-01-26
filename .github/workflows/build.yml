@@ -66,24 +66,56 @@ jobs:
         echo "⏳ Esperando a que la aplicación inicie..."
         sleep 10
         
+        echo "📋 Estado de contenedores:"
+        docker compose -f docker-compose.prod.yml ps
+        
+        echo ""
+        echo "📝 Logs de PHP:"
+        docker compose -f docker-compose.prod.yml logs php
+        
+        echo ""
+        echo "📝 Logs de Nginx:"
+        docker compose -f docker-compose.prod.yml logs nginx
+        
+        echo ""
         echo "✓ Probando endpoint raíz..."
-        response=$(curl -sf http://localhost:8080)
-        if echo "$response" | grep -qi "fatal error\|warning\|error"; then
-          echo "❌ Error detectado en endpoint raíz"
-          docker compose -f docker-compose.prod.yml logs
+        if ! response=$(curl -v http://localhost:8080 2>&1); then
+          echo "❌ Curl falló al conectar al endpoint raíz"
+          echo "Respuesta completa:"
+          echo "$response"
           docker compose -f docker-compose.prod.yml down
           exit 1
         fi
         
+        echo "Respuesta recibida:"
+        echo "$response"
+        
+        if echo "$response" | grep -qi "fatal error\|warning\|parse error"; then
+          echo "❌ Error PHP detectado en endpoint raíz"
+          docker compose -f docker-compose.prod.yml down
+          exit 1
+        fi
+        
+        echo ""
         echo "✓ Probando endpoint de salud..."
-        response=$(curl -sf http://localhost:8080/health)
-        if echo "$response" | grep -qi "fatal error\|warning\|error"; then
-          echo "❌ Error detectado en endpoint de salud"
-          docker compose -f docker-compose.prod.yml logs
+        if ! health_response=$(curl -v http://localhost:8080/health 2>&1); then
+          echo "❌ Curl falló al conectar al endpoint de salud"
+          echo "Respuesta completa:"
+          echo "$health_response"
           docker compose -f docker-compose.prod.yml down
           exit 1
         fi
         
+        echo "Respuesta recibida:"
+        echo "$health_response"
+        
+        if echo "$health_response" | grep -qi "fatal error\|warning\|parse error"; then
+          echo "❌ Error PHP detectado en endpoint de salud"
+          docker compose -f docker-compose.prod.yml down
+          exit 1
+        fi
+        
+        echo ""
         echo "✅ Imagen productiva funciona correctamente"
         docker compose -f docker-compose.prod.yml down
 
