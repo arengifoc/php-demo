@@ -1,0 +1,117 @@
+name: Build y Publicación de Imagen Docker
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:  # Permite ejecución manual
+
+jobs:
+  build-and-push:
+    name: Construir y Publicar Imagen
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configurar PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, json
+
+    - name: Instalar dependencias de producción
+      run: composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
+
+    - name: Generar tags de imagen
+      id: meta
+      run: |
+        COMMIT_SHORT=$(git rev-parse --short HEAD)
+        echo "commit_short=$COMMIT_SHORT" >> $GITHUB_OUTPUT
+        echo "timestamp=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+        echo "Tags generados: $COMMIT_SHORT"
+
+    - name: Login en Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Configurar Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Construir imagen Docker (sin publicar)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/php/Dockerfile.prod
+        push: false
+        load: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/php-demo:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/php-demo:${{ steps.meta.outputs.commit_short }}
+          ${{ secrets.DOCKERHUB_USERNAME }}/php-demo:${{ steps.meta.outputs.timestamp }}
+        cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/php-demo:buildcache
+        cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/php-demo:buildcache,mode=max
+
+    - name: Probar imagen productiva
+      run: |
+        echo "🧪 Probando imagen autocontenida..."
+        docker-compose -f docker-compose.prod.yml up -d
+        
+        echo "⏳ Esperando a que la aplicación inicie..."
+        sleep 10
+        
+        echo "✓ Probando endpoint raíz..."
+        response=$(curl -sf http://localhost:8080)
+        if echo "$response" | grep -qi "fatal error\|warning\|error"; then
+          echo "❌ Error detectado en endpoint raíz"
+          docker-compose -f docker-compose.prod.yml logs
+          docker-compose -f docker-compose.prod.yml down
+          exit 1
+        fi
+        
+        echo "✓ Probando endpoint de salud..."
+        response=$(curl -sf http://localhost:8080/health)
+        if echo "$response" | grep -qi "fatal error\|warning\|error"; then
+          echo "❌ Error detectado en endpoint de salud"
+          docker-compose -f docker-compose.prod.yml logs
+          docker-compose -f docker-compose.prod.yml down
+          exit 1
+        fi
+        
+        echo "✅ Imagen productiva funciona correctamente"
+        docker-compose -f docker-compose.prod.yml down
+
+    - name: Publicar imagen a Docker Hub
+      run: |
+        echo "📤 Publicando imagen a Docker Hub..."
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/php-demo:latest
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/php-demo:${{ steps.meta.outputs.commit_short }}
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/php-demo:${{ steps.meta.outputs.timestamp }}
+        echo "✅ Imagen publicada exitosamente"
+
+    - name: Resumen de imagen publicada
+      run: |
+        echo "## 🐳 Imagen Docker Publicada" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Imagen construida y publicada exitosamente" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Tags generados:" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ secrets.DOCKERHUB_USERNAME }}/php-demo:latest\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ secrets.DOCKERHUB_USERNAME }}/php-demo:${{ steps.meta.outputs.commit_short }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ secrets.DOCKERHUB_USERNAME }}/php-demo:${{ steps.meta.outputs.timestamp }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Cómo usar:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/php-demo:${{ steps.meta.outputs.commit_short }}" >> $GITHUB_STEP_SUMMARY
+        echo "docker run -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/php-demo:${{ steps.meta.outputs.commit_short }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Verificar imagen en Docker Hub
+      run: |
+        echo "Imagen disponible en: https://hub.docker.com/r/${{ secrets.DOCKERHUB_USERNAME }}/php-demo"
