@@ -22,7 +22,6 @@ phpstan.neon
 # Documentation
 README.md
 LICENSE
-Makefile
 
 # IDE
 .vscode
