@@ -79,41 +79,51 @@ jobs:
         
         echo ""
         echo "✓ Probando endpoint raíz..."
-        if ! response=$(curl -v http://localhost:8080 2>&1); then
-          echo "❌ Curl falló al conectar al endpoint raíz"
-          echo "Respuesta completa:"
-          echo "$response"
-          docker compose -f docker-compose.prod.yml down
-          exit 1
-        fi
+        http_code=$(curl -s -o /tmp/response.txt -w "%{http_code}" http://localhost:8080)
+        response=$(cat /tmp/response.txt)
         
-        echo "Respuesta recibida:"
+        echo "HTTP Status Code: $http_code"
+        echo "Respuesta:"
         echo "$response"
         
-        if echo "$response" | grep -qi "fatal error\|warning\|parse error"; then
-          echo "❌ Error PHP detectado en endpoint raíz"
+        if [ "$http_code" != "200" ]; then
+          echo "❌ Error: Se esperaba HTTP 200, pero se recibió $http_code"
+          docker compose -f docker-compose.prod.yml logs
           docker compose -f docker-compose.prod.yml down
           exit 1
         fi
+        
+        if echo "$response" | grep -qi "fatal error\|warning\|parse error"; then
+          echo "❌ Error PHP detectado en la respuesta"
+          docker compose -f docker-compose.prod.yml down
+          exit 1
+        fi
+        
+        echo "✅ Endpoint raíz OK (HTTP 200)"
         
         echo ""
         echo "✓ Probando endpoint de salud..."
-        if ! health_response=$(curl -v http://localhost:8080/health 2>&1); then
-          echo "❌ Curl falló al conectar al endpoint de salud"
-          echo "Respuesta completa:"
-          echo "$health_response"
-          docker compose -f docker-compose.prod.yml down
-          exit 1
-        fi
+        health_code=$(curl -s -o /tmp/health.txt -w "%{http_code}" http://localhost:8080/health)
+        health_response=$(cat /tmp/health.txt)
         
-        echo "Respuesta recibida:"
+        echo "HTTP Status Code: $health_code"
+        echo "Respuesta:"
         echo "$health_response"
         
-        if echo "$health_response" | grep -qi "fatal error\|warning\|parse error"; then
-          echo "❌ Error PHP detectado en endpoint de salud"
+        if [ "$health_code" != "200" ]; then
+          echo "❌ Error: Se esperaba HTTP 200, pero se recibió $health_code"
+          docker compose -f docker-compose.prod.yml logs
           docker compose -f docker-compose.prod.yml down
           exit 1
         fi
+        
+        if echo "$health_response" | grep -qi "fatal error\|warning\|parse error"; then
+          echo "❌ Error PHP detectado en la respuesta"
+          docker compose -f docker-compose.prod.yml down
+          exit 1
+        fi
+        
+        echo "✅ Endpoint de salud OK (HTTP 200)"
         
         echo ""
         echo "✅ Imagen productiva funciona correctamente"
