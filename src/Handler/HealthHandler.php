@@ -12,7 +12,8 @@ class HealthHandler
     public function __invoke(Request $request, Response $response): Response
     {
         $health = [
-            'estado' => 'saludable',
+            'estado' => 'saludable',  // ❌ DEMO: Cambiar a $this->getHealthStatus() para simular falla
+            // 'estado' => $this->getHealthStatus(),
             'fecha_hora' => date('c'),
             'tiempo_activo' => $this->getUptime(),
             'version_php' => PHP_VERSION,
@@ -37,22 +38,36 @@ class HealthHandler
     {
         $uptime = time() - $_SERVER['REQUEST_TIME'];
 
+        // ❌ DEMO: Descomentar para simular error de PHPStan (nivel 8)
+        // PHPStan detectará que estamos retornando int en vez de string
+        // return $uptime;
+
         return sprintf('%d segundos', $uptime);
     }
 
+    /**
+     * @return array<string, string>
+     */
     private function getBuildInfo(): array
     {
         $buildFile = __DIR__ . '/../../build-info.json';
-        
+
         if (file_exists($buildFile)) {
             $content = file_get_contents($buildFile);
+            if ($content === false) {
+                return $this->getDefaultBuildInfo();
+            }
             $info = json_decode($content, true);
-            return $info ?: $this->getDefaultBuildInfo();
+
+            return is_array($info) ? $info : $this->getDefaultBuildInfo();
         }
-        
+
         return $this->getDefaultBuildInfo();
     }
 
+    /**
+     * @return array<string, string>
+     */
     private function getDefaultBuildInfo(): array
     {
         return [
@@ -63,6 +78,9 @@ class HealthHandler
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
     private function getDeploymentInfo(): array
     {
         return [
@@ -70,4 +88,13 @@ class HealthHandler
             'environment' => getenv('DEPLOY_ENV') ?: 'unknown',
         ];
     }
+
+    // ❌ DEMO: Descomentar para simular falla de test unitario PHPUnit
+    // Este método cambiará el estado esperado de "saludable" a "enfermo"
+    // lo que hará que el test testElEndpointHealthDevuelveEstadoDeSalud falle
+
+    // private function getHealthStatus(): string
+    // {
+    //     return 'enfermo';  // Esto causará que el test falle
+    // }
 }

@@ -25,7 +25,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    
+
     steps:
     - name: Información de despliegue
       run: |
@@ -37,11 +37,11 @@ jobs:
     - name: Verificar imagen en Docker Hub
       run: |
         echo "🔍 Verificando que la imagen existe en Docker Hub..."
-        
+
         # Verificar con Docker Hub API
         STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
           "https://hub.docker.com/v2/repositories/${{ vars.DOCKERHUB_USERNAME }}/php-demo/tags/${{ inputs.image_tag }}")
-        
+
         if [ "$STATUS" = "200" ]; then
           echo "✅ Imagen encontrada en Docker Hub"
         else
@@ -54,19 +54,19 @@ jobs:
       id: webhook
       run: |
         echo "📡 Enviando comando de despliegue al servidor..."
-        
+
         response=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
           -X POST \
           -H "Content-Type: application/json" \
           -d '{"image_tag":"${{ inputs.image_tag }}", "environment":"dev"}' \
           "${{ secrets.WEBHOOK_URL }}?token=${{ secrets.WEBHOOK_TOKEN }}")
-        
+
         http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2)
         body=$(echo "$response" | sed '/HTTP_CODE:/d')
-        
+
         echo "Estado HTTP: $http_code"
         echo "Respuesta: $body"
-        
+
         if [ "$http_code" = "200" ]; then
           echo "✅ Webhook ejecutado correctamente"
           echo "response=$body" >> $GITHUB_OUTPUT
@@ -83,22 +83,22 @@ jobs:
     - name: Verificar despliegue
       run: |
         echo "🔍 Verificando que la aplicación responde..."
-        
+
         max_attempts=10
         attempt=1
-        
+
         while [ $attempt -le $max_attempts ]; do
           echo "Intento $attempt de $max_attempts..."
-          
+
           if response=$(curl -s -f https://${{ vars.DEV_SERVER_URL }}/health); then
             echo "✅ Aplicación responde correctamente"
             echo ""
             echo "📊 Información de build desplegada:"
             echo "$response" | jq '.'
-            
+
             # Verificar que el tag de deployment coincide
             deployed_tag=$(echo "$response" | jq -r '.deployment.tag')
-            
+
             if [ "$deployed_tag" = "${{ inputs.image_tag }}" ]; then
               echo ""
               echo "✅ Tag verificado: $deployed_tag"
@@ -112,11 +112,11 @@ jobs:
           else
             echo "⏳ Aplicación aún no responde, esperando..."
           fi
-          
+
           attempt=$((attempt + 1))
           sleep 10
         done
-        
+
         echo "❌ La aplicación no respondió después de $max_attempts intentos"
         exit 1
 
