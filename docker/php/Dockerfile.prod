@@ -67,8 +67,8 @@ ARG BUILD_DATE=unknown
 ARG IMAGE_TAG=unknown
 RUN echo "{\"commit\":\"${GIT_COMMIT}\",\"fecha\":\"${BUILD_DATE}\",\"tag\":\"${IMAGE_TAG}\",\"branch\":\"master\"}" > build-info.json
 
-# Copy Nginx configuration
-COPY docker/nginx/nginx.conf /etc/nginx/http.d/default.conf
+# Copy Nginx configuration (versión producción con 127.0.0.1)
+COPY docker/nginx/nginx-prod.conf /etc/nginx/http.d/default.conf
 
 # Copy Supervisor configuration
 COPY docker/supervisord.conf /etc/supervisord.conf
