@@ -17,7 +17,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    
+
     steps:
     - uses: actions/checkout@v4
 
@@ -69,65 +69,65 @@ jobs:
       run: |
         echo "🧪 Probando imagen autocontenida..."
         docker compose -f docker-compose.prod.yml up -d
-        
+
         echo "⏳ Esperando a que la aplicación inicie..."
         sleep 10
-        
+
         echo "📋 Estado de contenedores:"
         docker compose -f docker-compose.prod.yml ps
-        
+
         echo ""
         echo "📝 Logs de la aplicación (Nginx + PHP-FPM):"
         docker compose -f docker-compose.prod.yml logs app
-        
+
         echo ""
         echo "✓ Probando endpoint raíz..."
         http_code=$(curl -s -o /tmp/response.txt -w "%{http_code}" http://localhost:8080)
         response=$(cat /tmp/response.txt)
-        
+
         echo "Código de estado HTTP: $http_code"
         echo "Respuesta:"
         echo "$response"
-        
+
         if [ "$http_code" != "200" ]; then
           echo "❌ Error: Se esperaba HTTP 200, pero se recibió $http_code"
           docker compose -f docker-compose.prod.yml logs
           docker compose -f docker-compose.prod.yml down
           exit 1
         fi
-        
+
         if echo "$response" | grep -qi "fatal error\|warning\|parse error"; then
           echo "❌ Error PHP detectado en la respuesta"
           docker compose -f docker-compose.prod.yml down
           exit 1
         fi
-        
+
         echo "✅ Endpoint raíz OK (HTTP 200)"
-        
+
         echo ""
         echo "✓ Probando endpoint de salud..."
         health_code=$(curl -s -o /tmp/health.txt -w "%{http_code}" http://localhost:8080/health)
         health_response=$(cat /tmp/health.txt)
-        
+
         echo "Código de estado HTTP: $health_code"
         echo "Respuesta:"
         echo "$health_response"
-        
+
         if [ "$health_code" != "200" ]; then
           echo "❌ Error: Se esperaba HTTP 200, pero se recibió $health_code"
           docker compose -f docker-compose.prod.yml logs
           docker compose -f docker-compose.prod.yml down
           exit 1
         fi
-        
+
         if echo "$health_response" | grep -qi "fatal error\|warning\|parse error"; then
           echo "❌ Error PHP detectado en la respuesta"
           docker compose -f docker-compose.prod.yml down
           exit 1
         fi
-        
+
         echo "✅ Endpoint de salud OK (HTTP 200)"
-        
+
         echo ""
         echo "✅ Imagen productiva funciona correctamente"
         docker compose -f docker-compose.prod.yml down

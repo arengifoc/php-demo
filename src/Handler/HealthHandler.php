@@ -48,13 +48,13 @@ class HealthHandler
     private function getBuildInfo(): array
     {
         $buildFile = __DIR__ . '/../../build-info.json';
-        
+
         if (file_exists($buildFile)) {
             $content = file_get_contents($buildFile);
             $info = json_decode($content, true);
             return $info ?: $this->getDefaultBuildInfo();
         }
-        
+
         return $this->getDefaultBuildInfo();
     }
 
@@ -79,10 +79,10 @@ class HealthHandler
     // ❌ DEMO: Descomentar para simular falla de test unitario PHPUnit
     // Este método cambiará el estado esperado de "saludable" a "enfermo"
     // lo que hará que el test testElEndpointHealthDevuelveEstadoDeSalud falle
-    
+
     private function getHealthStatus(): string
     {
         return 'enfermo';  // Esto causará que el test falle
     }
-    
+
 }
