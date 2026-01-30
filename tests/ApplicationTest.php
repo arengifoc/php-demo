@@ -33,17 +33,17 @@ class ApplicationTest extends TestCase
     {
         $app = $this->application->getApp();
 
-        // Create request
+        // Crear solicitud
         $request = $this->createRequest('GET', '/');
 
-        // Process request
+        // Procesar solicitud
         $response = $app->handle($request);
 
-        // Assert response
+        // Verificar respuesta
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('application/json', $response->getHeaderLine('Content-Type'));
 
-        // Parse JSON response
+        // Analizar respuesta JSON
         $body = (string) $response->getBody();
         $data = json_decode($body, true);
 
@@ -59,17 +59,17 @@ class ApplicationTest extends TestCase
     {
         $app = $this->application->getApp();
 
-        // Create request
+        // Crear solicitud
         $request = $this->createRequest('GET', '/health');
 
-        // Process request
+        // Procesar solicitud
         $response = $app->handle($request);
 
-        // Assert response
+        // Verificar respuesta
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('application/json', $response->getHeaderLine('Content-Type'));
 
-        // Parse JSON response
+        // Analizar respuesta JSON
         $body = (string) $response->getBody();
         $data = json_decode($body, true);
 
@@ -128,7 +128,7 @@ class ApplicationTest extends TestCase
         $uri = new \Slim\Psr7\Uri('http', 'localhost', null, $path);
         $stream = fopen('php://temp', 'r+');
         if ($stream === false) {
-            throw new \RuntimeException('Failed to open stream');
+            throw new \RuntimeException('Error al abrir flujo');
         }
         $request = new \Slim\Psr7\Request(
             $method,

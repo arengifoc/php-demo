@@ -1,0 +1,104 @@
+name: Promover a Producción
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Se activa con tags de versión como v1.0.0
+
+jobs:
+  promote:
+    name: Promover Imagen a Producción
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      promoted_tag: ${{ steps.promote.outputs.promoted_tag }}
+      source_tag: ${{ steps.promote.outputs.source_tag }}
+    defaults:
+      run:
+        shell: bash
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Obtener todo el historial para conseguir info del commit
+
+    - name: Obtener SHA del commit para el tag
+      id: commit
+      run: |
+        COMMIT_SHA=$(git rev-list -n 1 ${{ github.ref }})
+        COMMIT_SHORT=$(echo $COMMIT_SHA | cut -c1-7)
+        echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+        echo "commit_short=$COMMIT_SHORT" >> $GITHUB_OUTPUT
+        echo "🔍 Tag ${{ github.ref_name }} apunta al commit: $COMMIT_SHORT"
+
+    - name: Login en Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ vars.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Verificar que imagen DEV existe
+      run: |
+        echo "🔍 Verificando que la imagen DEV existe..."
+        SOURCE_TAG="${{ steps.commit.outputs.commit_short }}"
+        
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          "https://hub.docker.com/v2/repositories/${{ vars.DOCKERHUB_USERNAME }}/php-demo/tags/$SOURCE_TAG")
+        
+        if [ "$STATUS" = "200" ]; then
+          echo "✅ Imagen DEV encontrada: ${{ vars.DOCKERHUB_USERNAME }}/php-demo:$SOURCE_TAG"
+        else
+          echo "❌ Imagen DEV no encontrada (HTTP $STATUS)"
+          echo "La imagen con el commit $SOURCE_TAG debe ser construida primero."
+          echo "Asegúrate de que el commit fue merged a master y construido."
+          exit 1
+        fi
+
+    - name: Promover imagen a producción
+      id: promote
+      run: |
+        SOURCE_TAG="${{ steps.commit.outputs.commit_short }}"
+        RELEASE_TAG="${{ github.ref_name }}"
+        
+        echo "📦 Promoviendo imagen a producción..."
+        echo "  Origen: ${{ vars.DOCKERHUB_USERNAME }}/php-demo:$SOURCE_TAG"
+        echo "  Destino: ${{ vars.DOCKERHUB_USERNAME }}/php-demo:$RELEASE_TAG"
+        
+        # Descargar la imagen probada desde DEV
+        docker pull ${{ vars.DOCKERHUB_USERNAME }}/php-demo:$SOURCE_TAG
+        
+        # Re-etiquetar con la versión
+        docker tag ${{ vars.DOCKERHUB_USERNAME }}/php-demo:$SOURCE_TAG \
+                   ${{ vars.DOCKERHUB_USERNAME }}/php-demo:$RELEASE_TAG
+        
+        # Publicar tag de versión
+        docker push ${{ vars.DOCKERHUB_USERNAME }}/php-demo:$RELEASE_TAG
+        
+        echo "✅ Imagen promovida exitosamente"
+        echo "promoted_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+        echo "source_tag=$SOURCE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Resumen de promoción
+      run: |
+        echo "## 🚀 Imagen Promovida a Producción" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Imagen DEV promovida exitosamente a producción" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Detalles:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Imagen origen (DEV):** \`${{ vars.DOCKERHUB_USERNAME }}/php-demo:${{ steps.commit.outputs.commit_short }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Imagen destino (PROD):** \`${{ vars.DOCKERHUB_USERNAME }}/php-demo:${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit:** \`${{ steps.commit.outputs.commit_sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tag de release:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Próximo paso:" >> $GITHUB_STEP_SUMMARY
+        echo "El despliegue a producción se iniciará automáticamente." >> $GITHUB_STEP_SUMMARY
+
+  # Desplegar a producción después de una promoción exitosa
+  deploy-prod:
+    name: Desplegar a PROD
+    needs: promote
+    uses: ./.github/workflows/deploy-prod.yml
+    with:
+      image_tag: ${{ needs.promote.outputs.promoted_tag }}
+    secrets: inherit

@@ -21,7 +21,7 @@ class HealthHandler
 
         $json = json_encode($health, JSON_PRETTY_PRINT);
         if ($json === false) {
-            $json = '{"error":"Failed to encode JSON"}';
+            $json = '{"error":"Error al codificar JSON"}';
         }
         $response->getBody()->write($json);
 
