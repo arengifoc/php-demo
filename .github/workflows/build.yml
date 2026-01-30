@@ -85,7 +85,7 @@ jobs:
         http_code=$(curl -s -o /tmp/response.txt -w "%{http_code}" http://localhost:8080)
         response=$(cat /tmp/response.txt)
         
-        echo "HTTP Status Code: $http_code"
+        echo "Código de estado HTTP: $http_code"
         echo "Respuesta:"
         echo "$response"
         
@@ -109,7 +109,7 @@ jobs:
         health_code=$(curl -s -o /tmp/health.txt -w "%{http_code}" http://localhost:8080/health)
         health_response=$(cat /tmp/health.txt)
         
-        echo "HTTP Status Code: $health_code"
+        echo "Código de estado HTTP: $health_code"
         echo "Respuesta:"
         echo "$health_response"
         
@@ -163,7 +163,7 @@ jobs:
 
   # Job de despliegue automático a DEV
   deploy-dev:
-    name: Deploy a DEV
+    name: Desplegar
     needs: build-and-push
     uses: ./.github/workflows/deploy-dev.yml
     with:

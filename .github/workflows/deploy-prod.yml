@@ -1,4 +1,4 @@
-name: Deploy a Producción
+name: Despliegue a PROD
 
 on:
   workflow_call:
@@ -101,8 +101,8 @@ jobs:
             echo "📊 Información de build desplegada:"
             echo "$response" | jq '.'
             
-            # Verificar que el tag coincide
-            deployed_tag=$(echo "$response" | jq -r '.build.tag')
+            # Verificar que el tag de deployment coincide
+            deployed_tag=$(echo "$response" | jq -r '.deployment.tag')
             
             if [ "$deployed_tag" = "$IMAGE_TAG" ]; then
               echo ""

@@ -17,6 +17,7 @@ class HealthHandler
             'tiempo_activo' => $this->getUptime(),
             'version_php' => PHP_VERSION,
             'build' => $this->getBuildInfo(),
+            'deployment' => $this->getDeploymentInfo(),
         ];
 
         $json = json_encode($health, JSON_PRETTY_PRINT);
@@ -59,6 +60,14 @@ class HealthHandler
             'branch' => getenv('GIT_BRANCH') ?: 'local',
             'fecha' => getenv('BUILD_DATE') ?: date('c'),
             'tag' => getenv('IMAGE_TAG') ?: 'latest',
+        ];
+    }
+
+    private function getDeploymentInfo(): array
+    {
+        return [
+            'tag' => getenv('DEPLOY_TAG') ?: getenv('IMAGE_TAG') ?: 'latest',
+            'environment' => getenv('DEPLOY_ENV') ?: 'unknown',
         ];
     }
 }

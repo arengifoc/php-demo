@@ -96,7 +96,7 @@ jobs:
 
   # Desplegar a producción después de una promoción exitosa
   deploy-prod:
-    name: Desplegar a PROD
+    name: Desplegar
     needs: promote
     uses: ./.github/workflows/deploy-prod.yml
     with:
