@@ -28,7 +28,7 @@ class Application
         $this->app->get('/health', HealthHandler::class);
 
         // ❌ DEMO: Descomentar para simular error de PHP-CS-Fixer (formato incorrecto)
-        $this->app->get('/bad-format', function($request,$response){return $response;});
+        // $this->app->get('/bad-format', function($request,$response){return $response;});
 
         $this->app->get('/', function ($request, $response) {
             $response->getBody()->write(json_encode([
