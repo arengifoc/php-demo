@@ -12,7 +12,8 @@ class HealthHandler
     public function __invoke(Request $request, Response $response): Response
     {
         $health = [
-            'estado' => 'saludable',
+            // 'estado' => 'saludable',  // ❌ DEMO: Cambiar a $this->getHealthStatus() para simular falla
+            'estado' => $this->getHealthStatus(),
             'fecha_hora' => date('c'),
             'tiempo_activo' => $this->getUptime(),
             'version_php' => PHP_VERSION,
@@ -37,7 +38,11 @@ class HealthHandler
     {
         $uptime = time() - $_SERVER['REQUEST_TIME'];
 
-        return sprintf('%d segundos', $uptime);
+        // ❌ DEMO: Descomentar para simular error de PHPStan (nivel 8)
+        // PHPStan detectará que estamos retornando int en vez de string
+        return $uptime;
+
+        // return sprintf('%d segundos', $uptime);
     }
 
     private function getBuildInfo(): array
@@ -70,4 +75,14 @@ class HealthHandler
             'environment' => getenv('DEPLOY_ENV') ?: 'unknown',
         ];
     }
+
+    // ❌ DEMO: Descomentar para simular falla de test unitario PHPUnit
+    // Este método cambiará el estado esperado de "saludable" a "enfermo"
+    // lo que hará que el test testElEndpointHealthDevuelveEstadoDeSalud falle
+    
+    private function getHealthStatus(): string
+    {
+        return 'enfermo';  // Esto causará que el test falle
+    }
+    
 }
