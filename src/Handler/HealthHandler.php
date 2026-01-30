@@ -45,20 +45,29 @@ class HealthHandler
         return sprintf('%d segundos', $uptime);
     }
 
+    /**
+     * @return array<string, string>
+     */
     private function getBuildInfo(): array
     {
         $buildFile = __DIR__ . '/../../build-info.json';
 
         if (file_exists($buildFile)) {
             $content = file_get_contents($buildFile);
+            if ($content === false) {
+                return $this->getDefaultBuildInfo();
+            }
             $info = json_decode($content, true);
 
-            return $info ?: $this->getDefaultBuildInfo();
+            return is_array($info) ? $info : $this->getDefaultBuildInfo();
         }
 
         return $this->getDefaultBuildInfo();
     }
 
+    /**
+     * @return array<string, string>
+     */
     private function getDefaultBuildInfo(): array
     {
         return [
@@ -69,6 +78,9 @@ class HealthHandler
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
     private function getDeploymentInfo(): array
     {
         return [
